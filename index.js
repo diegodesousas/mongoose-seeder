@@ -21,7 +21,8 @@ module.exports = (function() {
     // The default options
     var DEFAULT_OPTIONS = {
         dropDatabase: true,
-        dropCollections: false
+        dropCollections: false,
+        clearCollections: false
     };
 
     var _this = {
@@ -38,7 +39,7 @@ module.exports = (function() {
             try {
                 // Retrieve all the dependencies
                 _.forEach(data._dependencies || {}, function(value, key) {
-                    if(this.sandbox[key] !== undefined) {
+                    if (this.sandbox[key] !== undefined) {
                         // Do nothing if the dependency is already defined
                         return;
                     }
@@ -48,8 +49,7 @@ module.exports = (function() {
 
                 // Remove the dependencies property
                 delete data._dependencies;
-            }
-            catch(e) {
+            } catch (e) {
                 // Stop execution and return the MODULE_NOT_FOUND error
                 return done(e);
             }
@@ -61,7 +61,7 @@ module.exports = (function() {
                 var value = data[key];
 
                 try {
-                    if(!value._model) {
+                    if (!value._model) {
                         // Throw an error if the model could not be found
                         throw new Error('Please provide a _model property that describes which database model should be used.');
                     }
@@ -76,9 +76,23 @@ module.exports = (function() {
 
                     async.series([
                         function(callback) {
-                            if(_this.options.dropCollections === true) {
+
+                            // The clearCollection option should have priority over other
+                            if (_this.options.clearCollections === true) {
+
+                                _this.options.dropCollections == false;
+                                _this.options.dropDatabase == false;
+                            }
+
+                            if (_this.options.dropCollections === true) {
                                 // Drop the collection
                                 mongoose.connection.db.dropCollection(Model.collection.name, function(err) {
+                                    callback();
+                                });
+                            }
+                            elseif(_this.options.clearCollections === true) {
+                                // clear the collection
+                                mongoose.connection.collections[Model.collection.name].remove({}, function(err) {
                                     callback();
                                 });
                             }
@@ -93,7 +107,7 @@ module.exports = (function() {
 
                                 // Create the model
                                 Model.create(data, function(err, result) {
-                                    if(err) {
+                                    if (err) {
                                         // Do not stop execution if an error occurs
                                         return innerNext(err);
                                     }
@@ -105,13 +119,12 @@ module.exports = (function() {
                             }, callback);
                         }
                     ], next);
-                }
-                catch(err) {
+                } catch (err) {
                     // If the model does not exist, stop the execution
                     return next(err);
                 }
             }, function(err) {
-                if(err) {
+                if (err) {
                     // Make sure to not return the result
                     return done(err);
                 }
@@ -142,22 +155,20 @@ module.exports = (function() {
          * @return {*}              The parsed value.
          */
         _parseValue: function(parent, value) {
-            if(_.isPlainObject(value)) {
+            if (_.isPlainObject(value)) {
                 // Unwind the object
                 return _this._unwind(value);
-            }
-            else if(_.isArray(value)) {
+            } else if (_.isArray(value)) {
                 // Iterate over the array
                 return _.map(value, function(val) {
                     return _this._parseValue(parent, val);
                 });
-            }
-            else if(_.isString(value) && value.indexOf('=') === 0) {
+            } else if (_.isString(value) && value.indexOf('=') === 0) {
                 // Evaluate the expression
                 try {
                     // Assign the object to the _this property
                     var base = {
-                       '_this': parent
+                        '_this': parent
                     };
 
                     // Create a new combined context
@@ -165,12 +176,10 @@ module.exports = (function() {
 
                     // Run in the new context
                     return vm.runInContext(value.substr(1).replace(/this\./g, '_this.'), ctx);
-                }
-                catch(e) {
+                } catch (e) {
                     return value;
                 }
-            }
-            else if(_.isString(value) && value.indexOf('->') === 0) {
+            } else if (_.isString(value) && value.indexOf('->') === 0) {
                 // Find the reference to the object
                 return _this._findReference(value.substr(2));
             }
@@ -189,20 +198,20 @@ module.exports = (function() {
                 key = keys.shift(),
                 result = _this.result[key];
 
-            if(!result) {
+            if (!result) {
                 // If the result does not exist, return an empty
                 throw new TypeError('Could not read property \'' + key + '\' from undefined');
             }
 
             // Iterate over all the keys and find the property
-            while((key = keys.shift())) {
+            while ((key = keys.shift())) {
                 result = result[key];
             }
 
-            if(_.isObject(result) && !_.isArray(result)) {
+            if (_.isObject(result) && !_.isArray(result)) {
                 // Test if the result we have is an object. This means the user wants to reference
                 // to the _id of the object.
-                if(!result._id) {
+                if (!result._id) {
                     // If no _id property exists, throw a TypeError that the property could not be found
                     throw new TypeError('Could not read property \'_id\' of ' + JSON.stringify(result));
                 }
@@ -223,7 +232,7 @@ module.exports = (function() {
          * @param  {Function} callback The method that should be called when the seeding is done.
          */
         seed: function(data, options, callback) {
-            if(_.isFunction(options)) {
+            if (_.isFunction(options)) {
                 // Set the correct callback function
                 callback = options;
                 options = {};
@@ -243,17 +252,17 @@ module.exports = (function() {
             // Defaulting the options
             _this.options = _.extend(_.clone(DEFAULT_OPTIONS), options);
 
-            if(_this.options.dropCollections === true && _this.options.dropDatabase === true) {
+            if (_this.options.dropCollections === true && _this.options.dropDatabase === true) {
                 // Only one of the two flags can be turned on. If both are true, this means the
                 // user set the dropCollections itself and this should have higher priority then
                 // the default values.
                 _this.options.dropDatabase = false;
             }
 
-            if(_this.options.dropDatabase === true) {
+            if (_this.options.dropDatabase === true) {
                 // Make sure to drop the database first
                 mongoose.connection.db.dropDatabase(function(err) {
-                    if(err) {
+                    if (err) {
                         // Stop seeding if an error occurred
                         return done(err);
                     }
@@ -261,8 +270,7 @@ module.exports = (function() {
                     // Start seeding when the database is dropped
                     _this._seed(_.cloneDeep(data), done);
                 });
-            }
-            else {
+            } else {
                 // Do not drop the entire database, start seeding
                 _this._seed(_.cloneDeep(data), done);
             }
@@ -276,7 +284,7 @@ module.exports = (function() {
              * @param  {Object}   result [description]
              */
             function done(err, result) {
-                if(err) {
+                if (err) {
                     def.reject(err);
                     callback(err);
                     return;
