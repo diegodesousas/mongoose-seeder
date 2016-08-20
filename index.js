@@ -89,14 +89,12 @@ module.exports = (function() {
                                 mongoose.connection.db.dropCollection(Model.collection.name, function(err) {
                                     callback();
                                 });
-                            }
-                            elseif(_this.options.clearCollections === true) {
+                            } else if (_this.options.clearCollections === true) {
                                 // clear the collection
                                 mongoose.connection.collections[Model.collection.name].remove({}, function(err) {
                                     callback();
                                 });
-                            }
-                            else {
+                            } else {
                                 callback();
                             }
                         },
