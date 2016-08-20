@@ -250,9 +250,9 @@ module.exports = (function() {
             // Defaulting the options
             _this.options = _.extend(_.clone(DEFAULT_OPTIONS), options);
 
-            if (_this.options.dropCollections === true && _this.options.dropDatabase === true) {
-                // Only one of the two flags can be turned on. If both are true, this means the
-                // user set the dropCollections itself and this should have higher priority then
+            if ((_this.options.dropCollections === true || _this.options.clearCollections === true) && _this.options.dropDatabase === true) {
+                // Only one of the three flags can be turned on. If both are true, this means the
+                // user set the dropCollections or clearCollections itself and this should have higher priority then
                 // the default values.
                 _this.options.dropDatabase = false;
             }
